@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Evaluation Rubric & Assessment System</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for Radar Chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts: Prompt -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                    },
+                    colors: {
+                        theme: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            400: '#34d399',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            800: '#065f46',
+                            900: '#064e3b',
+                        },
+                        accent: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            700: '#0f766e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;
+            background: linear-gradient(135deg, #f0fdf4 0%, #e6f4f1 50%, #f0f9ff 100%);
+            color: #0f172a;
+            min-height: 100vh;
+        }
+        .rubric-card {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .rubric-card.selected {
+            border-color: #10b981;
+            background-color: #ecfdf5;
+            box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.2);
+            transform: translateY(-2px);
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white !important; }
+            .shadow-xl, .shadow-lg, .shadow-md, .shadow-sm { box-shadow: none !important; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+    <!-- App Header (Visible when logged in) -->
+    <header id="appHeader" class="hidden bg-gradient-to-r from-theme-700 via-theme-600 to-accent-600 text-white shadow-lg sticky top-0 z-50 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="p-2.5 bg-white/15 rounded-2xl backdrop-blur-md border border-white/20">
+                    <i class="fa-solid fa-award text-2xl text-emerald-200"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold leading-tight tracking-wide">Smart Evaluation Rubric</h1>
+                    <p class="text-xs text-emerald-100 font-light">ระบบวัดและประเมินผลการเรียนรู้ผ่านรูบริกตอบสนอง</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <span id="userRoleBadge" class="px-3.5 py-1.5 bg-white/15 border border-white/20 text-white text-xs font-medium rounded-full flex items-center gap-2 backdrop-blur-md">
+                    <i class="fa-solid fa-user-shield text-emerald-300"></i> <span id="roleText">อาจารย์ (แอดมิน)</span>
+                </span>
+                <button onclick="logout()" class="px-3.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white text-xs font-semibold rounded-xl transition duration-200 flex items-center gap-1.5 shadow-md shadow-rose-900/10">
+                    <i class="fa-solid fa-right-from-bracket"></i> ออกจากระบบ
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- LOGIN SCREEN CONTAINER -->
+    <div id="loginSection" class="flex-grow flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-emerald-100/80">
+            <!-- Login Header Banner -->
+            <div class="bg-gradient-to-br from-theme-600 to-accent-700 p-8 text-center text-white relative overflow-hidden">
+                <div class="absolute -right-10 -bottom-10 text-white/10 text-9xl font-black select-none pointer-events-none">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <div class="relative z-10">
+                    <div class="inline-flex p-4 bg-white/15 rounded-2xl mb-3 backdrop-blur-md border border-white/20 shadow-inner">
+                        <i class="fa-solid fa-graduation-cap text-4xl text-emerald-200"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold">เข้าสู่ระบบการประเมินผล</h2>
+                    <p class="text-xs text-emerald-100 mt-1">Smart Evaluation Rubric & Portfolio System</p>
+                </div>
+            </div>
+
+            <!-- Login Tabs -->
+            <div class="flex border-b border-slate-100 bg-emerald-50/50">
+                <button id="tabStudentBtn" onclick="switchLoginTab('student')" class="flex-1 py-3.5 text-sm font-semibold text-theme-700 border-b-2 border-theme-600 bg-white flex items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-user-graduate"></i> นักศึกษา
+                </button>
+                <button id="tabTeacherBtn" onclick="switchLoginTab('teacher')" class="flex-1 py-3.5 text-sm font-semibold text-slate-400 flex items-center justify-center gap-2 hover:text-theme-600 transition">
+                    <i class="fa-solid fa-user-tie"></i> อาจารย์ (แอดมิน)
+                </button>
+            </div>
+
+            <!-- Login Form -->
+            <div class="p-6 sm:p-8 space-y-5">
+                <!-- Student Login Fields -->
+                <div id="studentForm" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">ชื่อ - นามสกุล นักศึกษา</label>
+                        <input type="text" id="loginStudentName" value="น.ส.สุภัสสร ศรีกระทุม" placeholder="เช่น น.ส.สุภัสสร ศรีกระทุม" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-theme-500 focus:border-transparent text-sm transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">รหัสนักศึกษา</label>
+                        <input type="text" id="loginStudentId" value="6840144217" placeholder="เช่น 6840144217" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-theme-500 focus:border-transparent text-sm transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">หมู่เรียน (Group)</label>
+                        <input type="text" id="loginStudentGroup" value="ค.6814" placeholder="เช่น ค.6814" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-theme-500 focus:border-transparent text-sm transition">
+                    </div>
+                </div>
+
+                <!-- Teacher Login Hint -->
+                <div id="teacherForm" class="hidden space-y-4 bg-emerald-50/70 p-4 rounded-2xl border border-emerald-100">
+                    <div class="flex items-center gap-3 text-theme-800">
+                        <i class="fa-solid fa-circle-info text-xl text-theme-600"></i>
+                        <p class="text-xs leading-relaxed">เข้าสู่ระบบในฐานะอาจารย์ผู้สอน เพื่อจัดการประเมิน บันทึกเกรด และดูสถิติสมรรถนะของนักศึกษาทุกคน</p>
+                    </div>
+                </div>
+
+                <!-- Alert Message -->
+                <div id="loginAlert" class="hidden p-3 bg-rose-50 text-rose-600 text-xs rounded-xl border border-rose-200">
+                    กรุณากรอกข้อมูลให้ครบถ้วนทุกช่อง!
+                </div>
+
+                <button id="loginSubmitBtn" onclick="handleLogin()" class="w-full py-3.5 bg-gradient-to-r from-theme-600 to-accent-600 hover:from-theme-700 hover:to-accent-700 text-white font-semibold rounded-xl shadow-lg shadow-theme-600/20 transition duration-200 text-sm flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-to-bracket"></i> เข้าสู่ระบบนักศึกษา
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD CONTENT (Hidden by default) -->
+    <main id="dashboardSection" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-grow space-y-6">
+        
+        <!-- TEACHER CONTROL BAR -->
+        <div id="teacherControlPanel" class="bg-amber-50/90 border border-amber-200/80 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 no-print shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-amber-500 text-white rounded-xl shadow-sm">
+                    <i class="fa-solid fa-users-gear text-lg"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-amber-900 text-sm sm:text-base">แผงควบคุมอาจารย์: เลือกนักศึกษาเพื่อจัดการผลประเมิน</h3>
+                    <p class="text-xs text-amber-700">เลือกนักศึกษาเพื่อดูผล/ประเมิน หรือลบข้อมูลที่ไม่ถูกต้องออกจากระบบ</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 w-full md:w-auto">
+                <select id="studentSelect" onchange="changeSelectedStudent()" class="w-full md:w-64 px-3.5 py-2 bg-white border border-amber-300 rounded-xl text-sm font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none shadow-sm text-slate-700">
+                    <!-- Dynamic Options -->
+                </select>
+                <button onclick="addNewStudentPrompt()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition whitespace-nowrap flex items-center gap-1.5">
+                    <i class="fa-solid fa-user-plus"></i> เพิ่มนักศึกษา
+                </button>
+                <button onclick="deleteCurrentStudent()" class="px-3.5 py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-semibold rounded-xl shadow-sm transition whitespace-nowrap flex items-center gap-1.5">
+                    <i class="fa-solid fa-trash-can"></i> ลบข้อมูลนี้
+                </button>
+            </div>
+        </div>
+
+        <!-- SUMMARY METRIC BANNER & PROFILE CARD -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Student Information Card (7 Cols) -->
+            <div class="lg:col-span-7 bg-white/90 backdrop-blur-md rounded-3xl p-6 shadow-sm border border-emerald-100/80 flex flex-col justify-between">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-16 h-16 bg-gradient-to-tr from-theme-500 to-accent-500 text-white rounded-2xl flex items-center justify-center text-3xl font-bold shadow-md shadow-theme-500/20">
+                            <i class="fa-solid fa-user-graduate"></i>
+                        </div>
+                        <div>
+                            <span class="text-xs font-semibold text-theme-700 bg-theme-100 px-3 py-1 rounded-full inline-block mb-1" id="profileRoleBadge">ข้อมูลนักศึกษา</span>
+                            <h2 class="text-2xl font-bold text-slate-800" id="displayStudentName">น.ส.สุภัสสร ศรีกระทุม</h2>
+                            <p class="text-xs text-slate-500 mt-1 flex flex-wrap gap-2">
+                                <span>รหัสนักศึกษา: <strong id="displayStudentId" class="text-slate-700">6840144217</strong></span> | 
+                                <span>หมู่เรียน: <strong id="displayStudentGroup" class="text-slate-700">ค.6814</strong></span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+                    <span id="evalStatusBadge" class="inline-flex items-center gap-2 px-3.5 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full border border-emerald-200">
+                        <i class="fa-solid fa-circle-check text-emerald-500"></i> พร้อมรับการบันทึกผล
+                    </span>
+                    <button onclick="window.print()" class="no-print px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-medium rounded-xl shadow transition flex items-center gap-2">
+                        <i class="fa-solid fa-print"></i> พิมพ์รายงาน
+                    </button>
+                </div>
+            </div>
+
+            <!-- Overall Score Banner Card (5 Cols) -->
+            <div class="lg:col-span-5 bg-gradient-to-br from-theme-600 via-theme-700 to-accent-700 rounded-3xl p-6 text-white shadow-xl shadow-theme-900/10 relative overflow-hidden flex flex-col justify-between">
+                <div class="absolute -right-6 -bottom-6 text-white/10 text-9xl font-black select-none pointer-events-none">
+                    <i class="fa-solid fa-award"></i>
+                </div>
+
+                <div class="relative z-10">
+                    <div class="flex justify-between items-center">
+                        <p class="text-xs uppercase tracking-wider text-emerald-100 font-semibold">ผลคะแนนรวม (OVERALL SCORE)</p>
+                        <span class="text-[11px] bg-white/20 px-2.5 py-0.5 rounded-full border border-white/20">คะแนนเต็ม 100</span>
+                    </div>
+                    
+                    <div class="flex items-baseline justify-between my-2">
+                        <div class="flex items-baseline gap-1">
+                            <span id="totalScoreText" class="text-5xl font-black tracking-tight">85</span>
+                            <span class="text-lg text-emerald-200 font-medium">/100</span>
+                        </div>
+                        <div id="gradeBadge" class="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-3xl font-black text-white border border-white/30 shadow-inner">
+                            A
+                        </div>
+                    </div>
+                </div>
+
+                <div class="relative z-10 pt-3 border-t border-white/20 flex justify-between items-center">
+                    <span class="text-xs text-emerald-100">ระดับคุณภาพ:</span>
+                    <span id="qualityText" class="text-sm font-bold text-emerald-200">ดีเยี่ยม (Excellent)</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- EVALUATION GRID & RADAR CHART SECTION -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- LEFT COLUMN: RUBRIC EVALUATION FORM (7 Cols) -->
+            <div class="lg:col-span-7 space-y-6">
+                <div class="bg-white/90 backdrop-blur-md rounded-3xl p-6 shadow-sm border border-emerald-100/80">
+                    <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">แบบประเมินตามเกณฑ์ (Rubric Form)</h3>
+                            <p class="text-xs text-slate-500">เลือกระดับคุณภาพเพื่อประมวลผลคะแนนเรียลไทม์</p>
+                        </div>
+                        <span class="px-3 py-1 bg-emerald-50 text-theme-700 font-semibold text-xs rounded-full border border-emerald-200">เกณฑ์ 4 ด้าน</span>
+                    </div>
+
+                    <!-- RUBRIC ITEMS CONTAINER -->
+                    <div id="rubricContainer" class="space-y-6">
+                        <!-- Items rendered by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: COMPETENCY RADAR & FEEDBACK (5 Cols) -->
+            <div class="lg:col-span-5 space-y-6">
+                
+                <!-- Competency Radar Chart Box -->
+                <div class="bg-white/90 backdrop-blur-md rounded-3xl p-6 shadow-sm border border-emerald-100/80">
+                    <h3 class="text-base font-bold text-slate-800 mb-1">แผนภูมิสมรรถนะ (Competency Radar)</h3>
+                    <p class="text-xs text-slate-500 mb-4">แสดงสัดส่วนผลการเรียนรู้ผ่านเกณฑ์ 4 ด้านหลัก</p>
+                    
+                    <div class="relative w-full aspect-square max-h-64 flex items-center justify-center">
+                        <canvas id="competencyRadarChart"></canvas>
+                    </div>
+
+                    <!-- Breakdown Progress Bars -->
+                    <div class="mt-6 space-y-3 pt-4 border-t border-slate-100" id="criteriaBreakdownContainer">
+                        <!-- Dynamic Progress Bars -->
+                    </div>
+                </div>
+
+                <!-- Teacher Feedback Comments -->
+                <div class="bg-white/90 backdrop-blur-md rounded-3xl p-6 shadow-sm border border-emerald-100/80 no-print">
+                    <h3 class="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
+                        <i class="fa-regular fa-comment-dots text-theme-600"></i> ข้อเสนอแนะเพื่อการพัฒนา
+                    </h3>
+                    <textarea id="teacherFeedback" onchange="saveFeedback()" rows="3" placeholder="ระบุความคิดเห็นหรือคำแนะนำเพิ่มเติมจากอาจารย์..." class="w-full p-3.5 text-xs border border-slate-200 rounded-2xl focus:ring-2 focus:ring-theme-500 focus:outline-none transition bg-slate-50/50 focus:bg-white"></textarea>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- PRINT-ONLY REPORT FOOTER (Visible on Print) -->
+    <div class="hidden print-only p-8 max-w-4xl mx-auto border-t-2 border-slate-300 mt-8">
+        <div class="flex justify-between items-end">
+            <div class="text-center w-48">
+                <div class="border-b border-slate-400 mb-2 h-12"></div>
+                <p class="text-xs font-semibold">( .................................................... )</p>
+                <p class="text-xs text-slate-600">ผู้ประเมิน / อาจารย์ผู้สอน</p>
+            </div>
+            <div class="text-center w-48">
+                <div class="border-b border-slate-400 mb-2 h-12"></div>
+                <p class="text-xs font-semibold">( <span id="printStudentName">น.ส.สุภัสสร ศรีกระทุม</span> )</p>
+                <p class="text-xs text-slate-600">ผู้รับการประเมิน</p>
+            </div>
+        </div>
+        <p class="text-center text-[10px] text-slate-400 mt-8">ออกเอกสารโดยระบบ Smart Evaluation Rubric & Assessment System - Digital Evaluation Platform</p>
+    </div>
+
+    <!-- App Footer -->
+    <footer class="bg-white/80 border-t border-slate-200/80 py-4 no-print mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500">
+            Smart Evaluation Rubric System &copy; 2026 - นวัตกรรมเพื่อการวัดและประเมินผลการเรียนรู้ในยุคดิจิทัล
+        </div>
+    </footer>
+
+    <script>
+        // Rubric Criteria Definitions
+        const rubricCriteria = [
+            {
+                id: 1,
+                title: "1. โครงสร้างและการจัดสไตล์ (HTML & CSS)",
+                weight: 20, // 20%
+                levels: [
+                    { score: 4, label: "ดีมาก (4)", desc: "ตรงตามมาตรฐานระดับดีเยี่ยม สมบูรณ์ครบถ้วน" },
+                    { score: 3, label: "ดี (3)", desc: "ถูกต้องตามเกณฑ์มาตรฐาน ยอมรับได้" },
+                    { score: 2, label: "พอใช้ (2)", desc: "ทำได้ตามโจทย์พื้นฐาน ต้องได้รับการพัฒนาอีก" },
+                    { score: 1, label: "ปรับปรุง (1)", desc: "ยังไม่ผ่านเกณฑ์ ต้องได้รับการแก้ไข" }
+                ]
+            },
+            {
+                id: 2,
+                title: "2. การทำงานเชิงโต้ตอบ (JavaScript)",
+                weight: 25, // 25%
+                levels: [
+                    { score: 4, label: "ดีมาก (4)", desc: "การทำงานสมบูรณ์ ไม่มี error มีความยืดหยุ่นสูง" },
+                    { score: 3, label: "ดี (3)", desc: "ทำงานได้ตามฟังก์ชันหลักอย่างถูกต้อง" },
+                    { score: 2, label: "พอใช้ (2)", desc: "มีการทำงานติดขัดบางส่วน หรือคำนวณคลาดเคลื่อน" },
+                    { score: 1, label: "ปรับปรุง (1)", desc: "สคริปต์ไม่ทำงาน หรือมีข้อผิดพลาดร้ายแรง" }
+                ]
+            },
+            {
+                id: 3,
+                title: "3. การออกแบบ UI/UX",
+                weight: 25, // 25%
+                levels: [
+                    { score: 4, label: "ดีมาก (4)", desc: "สวยงาม ทันสมัย ใช้งานง่าย Responsive สมบูรณ์" },
+                    { score: 3, label: "ดี (3)", desc: "จัดวางองค์ประกอบดี อ่านง่าย ใช้งานได้ราบรื่น" },
+                    { score: 2, label: "พอใช้ (2)", desc: "ดีไซน์พื้นฐาน มีจุดที่ใช้งานยากเล็กน้อย" },
+                    { score: 1, label: "ปรับปรุง (1)", desc: "การจัดวางสับสน ไม่รองรับหน้าจอขนาดเล็ก" }
+                ]
+            },
+            {
+                id: 4,
+                title: "4. ความถูกต้องของเนื้อหาและการนำไปใช้",
+                weight: 30, // 30%
+                levels: [
+                    { score: 4, label: "ดีมาก (4)", desc: "เนื้อหาถูกต้องครบถ้วน ประยุกต์ใช้ได้จริงอย่างสร้างสรรค์" },
+                    { score: 3, label: "ดี (3)", desc: "เนื้อหาถูกต้อง ตรงตามวัตถุประสงค์หลัก" },
+                    { score: 2, label: "พอใช้ (2)", desc: "เนื้อหาขาดความสมบูรณ์ในบางจุด" },
+                    { score: 1, label: "ปรับปรุง (1)", desc: "เนื้อหาไม่ถูกต้องหรือไม่ตรงตามโจทย์" }
+                ]
+            }
+        ];
+
+        // Default Student Mock Database
+        let studentDataList = [
+            {
+                id: "6840144217",
+                name: "น.ส.สุภัสสร ศรีกระทุม",
+                group: "ค.6814",
+                scores: { 1: 4, 2: 3, 3: 4, 4: 3 },
+                feedback: "ผลงานโดยรวมออกแบบได้สวยงามมาก จัดวางองค์ประกอบดี สะอาดตา แนะนำเพิ่มเติม Validation สคริปต์"
+            },
+            {
+                id: "6840144204",
+                name: "นายฐานทัต บุตรนอก",
+                group: "ค.6814",
+                scores: { 1: 3, 2: 3, 3: 3, 4: 4 },
+                feedback: "เนื้อหาถูกต้องสมบูรณ์ตรงตามโจทย์"
+            },
+            {
+                id: "6840144205",
+                name: "นางสาวสมหญิง รักดี",
+                group: "ค.6814",
+                scores: { 1: 2, 2: 2, 3: 3, 4: 2 },
+                feedback: "ควรปรับปรุงการจัดสไตล์และ JavaScript"
+            }
+        ];
+
+        // State variables
+        let currentRole = 'teacher';
+        let currentStudentIndex = 0;
+        let activeTab = 'student';
+        let radarChartInstance = null;
+
+        // On Load Initialization
+        window.onload = function() {
+            renderStudentDropdown();
+            initRadarChart();
+            renderRubricForm();
+            updateDisplay();
+        };
+
+        // Switch Login Tab UI
+        function switchLoginTab(role) {
+            activeTab = role;
+            const studentBtn = document.getElementById('tabStudentBtn');
+            const teacherBtn = document.getElementById('tabTeacherBtn');
+            const studentForm = document.getElementById('studentForm');
+            const teacherForm = document.getElementById('teacherForm');
+            const submitBtn = document.getElementById('loginSubmitBtn');
+
+            if (role === 'student') {
+                studentBtn.className = "flex-1 py-3.5 text-sm font-semibold text-theme-700 border-b-2 border-theme-600 bg-white flex items-center justify-center gap-2 transition";
+                teacherBtn.className = "flex-1 py-3.5 text-sm font-semibold text-slate-400 flex items-center justify-center gap-2 hover:text-theme-600 transition";
+                studentForm.classList.remove('hidden');
+                teacherForm.classList.add('hidden');
+                submitBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> เข้าสู่ระบบนักศึกษา`;
+            } else {
+                teacherBtn.className = "flex-1 py-3.5 text-sm font-semibold text-theme-700 border-b-2 border-theme-600 bg-white flex items-center justify-center gap-2 transition";
+                studentBtn.className = "flex-1 py-3.5 text-sm font-semibold text-slate-400 flex items-center justify-center gap-2 hover:text-theme-600 transition";
+                teacherForm.classList.remove('hidden');
+                studentForm.classList.add('hidden');
+                submitBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> เข้าสู่ระบบอาจารย์`;
+            }
+        }
+
+        // Handle Login Process
+        function handleLogin() {
+            const alertBox = document.getElementById('loginAlert');
+            alertBox.classList.add('hidden');
+
+            if (activeTab === 'student') {
+                const name = document.getElementById('loginStudentName').value.trim();
+                const id = document.getElementById('loginStudentId').value.trim();
+                const group = document.getElementById('loginStudentGroup').value.trim();
+
+                if (!name || !id || !group) {
+                    alertBox.innerText = "กรุณากรอกข้อมูลนักศึกษาให้ครบถ้วนทุกช่อง!";
+                    alertBox.classList.remove('hidden');
+                    return;
+                }
+
+                let existingIndex = studentDataList.findIndex(s => s.id === id);
+                if (existingIndex !== -1) {
+                    currentStudentIndex = existingIndex;
+                } else {
+                    const newStudent = {
+                        id: id,
+                        name: name,
+                        group: group,
+                        scores: { 1: 3, 2: 3, 3: 3, 4: 3 },
+                        feedback: ""
+                    };
+                    studentDataList.push(newStudent);
+                    currentStudentIndex = studentDataList.length - 1;
+                    renderStudentDropdown();
+                }
+                currentRole = 'student';
+            } else {
+                currentRole = 'teacher';
+            }
+
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('appHeader').classList.remove('hidden');
+            document.getElementById('dashboardSection').classList.remove('hidden');
+
+            applyRolePermissions();
+            updateDisplay();
+        }
+
+        // Set Role View
+        function applyRolePermissions() {
+            const roleText = document.getElementById('roleText');
+            const teacherControl = document.getElementById('teacherControlPanel');
+            const profileRoleBadge = document.getElementById('profileRoleBadge');
+
+            if (currentRole === 'teacher') {
+                roleText.innerText = "อาจารย์ (แอดมิน)";
+                teacherControl.classList.remove('hidden');
+                profileRoleBadge.innerText = "ผู้รับการประเมิน";
+            } else {
+                roleText.innerText = "นักศึกษา";
+                teacherControl.classList.add('hidden');
+                profileRoleBadge.innerText = "ข้อมูลนักศึกษา";
+            }
+            renderRubricForm();
+        }
+
+        // Logout Process
+        function logout() {
+            document.getElementById('dashboardSection').classList.add('hidden');
+            document.getElementById('appHeader').classList.add('hidden');
+            document.getElementById('loginSection').classList.remove('hidden');
+        }
+
+        // Dropdown Management
+        function renderStudentDropdown() {
+            const select = document.getElementById('studentSelect');
+            select.innerHTML = '';
+            studentDataList.forEach((s, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx;
+                opt.innerText = `${s.name} (${s.id})`;
+                if (idx === currentStudentIndex) opt.selected = true;
+                select.appendChild(opt);
+            });
+        }
+
+        function changeSelectedStudent() {
+            const select = document.getElementById('studentSelect');
+            currentStudentIndex = parseInt(select.value);
+            updateDisplay();
+        }
+
+        function addNewStudentPrompt() {
+            const name = prompt("ระบุชื่อ-นามสกุล นักศึกษาใหม่:");
+            if (!name) return;
+            const id = prompt("ระบุรหัสนักศึกษา:");
+            if (!id) return;
+            const group = prompt("ระบุหมู่เรียน (เช่น ค.6814):", "ค.6814");
+
+            const newStudent = {
+                id: id,
+                name: name,
+                group: group || "ค.6814",
+                scores: { 1: 3, 2: 3, 3: 3, 4: 3 },
+                feedback: ""
+            };
+            studentDataList.push(newStudent);
+            currentStudentIndex = studentDataList.length - 1;
+            renderStudentDropdown();
+            updateDisplay();
+        }
+
+        function deleteCurrentStudent() {
+            if (studentDataList.length <= 1) {
+                alert("ต้องมีข้อมูลนักศึกษาอย่างน้อย 1 คนในระบบ");
+                return;
+            }
+            if (confirm(`คุณต้องการลบข้อมูลของ ${studentDataList[currentStudentIndex].name} หรือไม่?`)) {
+                studentDataList.splice(currentStudentIndex, 1);
+                currentStudentIndex = 0;
+                renderStudentDropdown();
+                updateDisplay();
+            }
+        }
+
+        // Render Rubric Criteria Form
+        function renderRubricForm() {
+            const container = document.getElementById('rubricContainer');
+            container.innerHTML = '';
+
+            const currentStudent = studentDataList[currentStudentIndex];
+            const isStudentRole = currentRole === 'student';
+
+            rubricCriteria.forEach(crit => {
+                const itemBox = document.createElement('div');
+                itemBox.className = "border border-slate-200/80 rounded-2xl p-4 sm:p-5 bg-slate-50/50 space-y-3";
+
+                const selectedScore = currentStudent.scores[crit.id] || 4;
+
+                let levelsHTML = crit.levels.map(lvl => {
+                    const isSelected = lvl.score === selectedScore;
+                    const cardClass = isSelected ? 'rubric-card selected bg-emerald-50/80 border-emerald-500' : 'rubric-card bg-white border-slate-200 hover:border-emerald-300';
+                    const disabledAttr = isStudentRole ? 'style="pointer-events: none;"' : `onclick="selectRubricScore(${crit.id}, ${lvl.score})"`;
+
+                    return `
+                        <div ${disabledAttr} class="p-3 rounded-xl border ${cardClass} cursor-pointer flex flex-col justify-between">
+                            <div>
+                                <div class="font-bold text-xs ${isSelected ? 'text-theme-700' : 'text-slate-800'}">${lvl.label}</div>
+                                <p class="text-[11px] text-slate-500 mt-1 leading-snug">${lvl.desc}</p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                itemBox.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <h4 class="font-bold text-sm text-slate-800">${crit.title}</h4>
+                        <span class="text-xs font-semibold px-2.5 py-1 bg-emerald-100/70 text-theme-800 rounded-lg">น้ำหนัก ${crit.weight}%</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                        ${levelsHTML}
+                    </div>
+                `;
+
+                container.appendChild(itemBox);
+            });
+        }
+
+        // Handle Score Selection
+        function selectRubricScore(critId, score) {
+            if (currentRole === 'student') return;
+            studentDataList[currentStudentIndex].scores[critId] = score;
+            renderRubricForm();
+            updateDisplay();
+        }
+
+        function saveFeedback() {
+            const txt = document.getElementById('teacherFeedback').value;
+            studentDataList[currentStudentIndex].feedback = txt;
+        }
+
+        // Score Calculation
+        function calculateWeightedTotalScore(scores) {
+            let totalWeightedScore = 0;
+            rubricCriteria.forEach(crit => {
+                const rawScore = scores[crit.id] || 1;
+                const percentage = (rawScore / 4) * crit.weight;
+                totalWeightedScore += percentage;
+            });
+            return Math.round(totalWeightedScore);
+        }
+
+        function getGradeAndQuality(score) {
+            if (score >= 85) return { grade: 'A', quality: 'ดีเยี่ยม (Excellent)' };
+            if (score >= 75) return { grade: 'B+', quality: 'ดีมาก (Very Good)' };
+            if (score >= 70) return { grade: 'B', quality: 'ดี (Good)' };
+            if (score >= 65) return { grade: 'C+', quality: 'ค่อนข้างดี (Fairly Good)' };
+            if (score >= 60) return { grade: 'C', quality: 'พอใช้ (Satisfactory)' };
+            if (score >= 55) return { grade: 'D+', quality: 'อ่อน (Passing)' };
+            if (score >= 50) return { grade: 'D', quality: 'ควรปรับปรุง (Poor)' };
+            return { grade: 'F', quality: 'ไม่ผ่านเกณฑ์ (Fail)' };
+        }
+
+        // Update UI State
+        function updateDisplay() {
+            const student = studentDataList[currentStudentIndex];
+
+            document.getElementById('displayStudentName').innerText = student.name;
+            document.getElementById('displayStudentId').innerText = student.id;
+            document.getElementById('displayStudentGroup').innerText = student.group;
+            document.getElementById('printStudentName').innerText = student.name;
+            document.getElementById('teacherFeedback').value = student.feedback || "";
+
+            const totalScore = calculateWeightedTotalScore(student.scores);
+            const gradeInfo = getGradeAndQuality(totalScore);
+
+            document.getElementById('totalScoreText').innerText = totalScore;
+            document.getElementById('gradeBadge').innerText = gradeInfo.grade;
+            document.getElementById('qualityText').innerText = gradeInfo.quality;
+
+            renderBreakdownProgress(student.scores);
+            updateRadarChart(student.scores);
+        }
+
+        function renderBreakdownProgress(scores) {
+            const container = document.getElementById('criteriaBreakdownContainer');
+            container.innerHTML = '';
+
+            rubricCriteria.forEach(crit => {
+                const rawScore = scores[crit.id] || 1;
+                const percent = (rawScore / 4) * 100;
+
+                const row = document.createElement('div');
+                row.className = "space-y-1";
+                row.innerHTML = `
+                    <div class="flex justify-between text-xs font-medium">
+                        <span class="text-slate-600 truncate max-w-[200px]">${crit.title}</span>
+                        <span class="text-theme-700 font-bold">${rawScore}/4 (${percent}%)</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                        <div class="bg-gradient-to-r from-theme-500 to-accent-500 h-2 rounded-full transition-all duration-300" style="width: ${percent}%"></div>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        // Chart.js Radar Initialization
+        function initRadarChart() {
+            const ctx = document.getElementById('competencyRadarChart').getContext('2d');
+            
+            radarChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['HTML/CSS', 'JavaScript', 'UI/UX Design', 'เนื้อหาและการประยุกต์'],
+                    datasets: [{
+                        label: 'ระดับสมรรถนะ (1-4)',
+                        data: [4, 3, 4, 3],
+                        backgroundColor: 'rgba(16, 185, 129, 0.25)',
+                        borderColor: '#059669',
+                        borderWidth: 2.5,
+                        pointBackgroundColor: '#059669',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#059669'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(226, 232, 240, 0.8)' },
+                            grid: { color: 'rgba(226, 232, 240, 0.8)' },
+                            suggestedMin: 0,
+                            suggestedMax: 4,
+                            ticks: {
+                                stepSize: 1,
+                                backdropColor: 'transparent',
+                                font: { family: 'Prompt', size: 10 }
+                            },
+                            pointLabels: {
+                                font: { family: 'Prompt', size: 11, weight: '500' },
+                                color: '#334155'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function updateRadarChart(scores) {
+            if (!radarChartInstance) return;
+            const dataValues = rubricCriteria.map(crit => scores[crit.id] || 1);
+            radarChartInstance.data.datasets[0].data = dataValues;
+            radarChartInstance.update();
+        }
+    </script>
+</body>
+</html>
